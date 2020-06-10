@@ -4,6 +4,7 @@ library(tidyverse)
 library(spacyr)
 library(textrank)
 library(tidytext)
+library(udpipe)
 
 df <- read_csv("DaVinciCode.csv")
 
@@ -26,7 +27,6 @@ top_tr <- stats %>%
   top_n(5,freq)
 
 # RAKE
-library(udpipe)
 stats2 <- keywords_rake(x = anno, 
                        term = "token", group = c("sentence_id"),
                        relevant = anno$pos %in% c("NOUN", "ADJ"),
@@ -39,4 +39,13 @@ top_rake <-stats2 %>%
 
 keywords <- rbind(top_tr,top_rake) %>%
   distinct(keyword, .keep_all = T) %>%
-  arrange(desc(freq))
+  arrange(desc(freq)) %>%
+  mutate(order = row_number())
+
+keywords %>% 
+  ggplot(aes(order,rev(freq))) +
+  geom_col() +
+  coord_flip() +
+  scale_x_continuous(breaks = keywords$order,
+                     labels = keywords$keyword) 
+  

@@ -4,6 +4,7 @@ library(tidyverse)
 library(quanteda)
 #library(sentida)
 library(sentimentr)
+library(zoo)
 
 df <- read_csv("DaVinciCode.csv")
 
@@ -12,6 +13,8 @@ df <- tibble(text = paste(df$text,collapse = ","))
 
 # sentimentr
 sentiments <- sentiment(get_sentences(df$text))
+
+sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
 
 # method1 - no grouping
 sentiments2 <- sentiments %>%
@@ -26,7 +29,6 @@ sentiments2 %>%
   geom_smooth(se=F)
 
 # method2 - with grouping
-sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
 
 sentiments3 <- sentiments %>%
   group_by(part) %>%
