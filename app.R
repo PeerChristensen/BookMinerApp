@@ -1,48 +1,61 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shiny)
+library(epubr)
+library(tidyverse)
+
+# File
+file <- "DaVinciCode.epub"
+df <- epub(file)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+    
+           titlePanel(h1("ePub-A-Lula!",align="center")),
+    fluidRow(
+        column(3,
+               actionButton("upload", "Upload ePub"),HTML('&nbsp;'),"This app will..")),
+    splitLayout(h4("Author",align="center"),
+                h4("Title",align="center"),
+                h4("Genre",align="center"),
+                h4("Publisher",align="center"),
+                h4("ISBN",align="center"),
+                h4("Date",align="center")),
+    splitLayout(
+        h5(textOutput("author"),align="center"),
+        h5(textOutput("title"),align="center"),
+        h5(textOutput("genre"),align="center"),
+        h5(textOutput("publisher"),align = "center"),
+        h5(textOutput("isbn"),align = "center"),
+        h5(textOutput("date"),align = "center")),
+    hr(),
+    splitLayout(
+        h3("Readability",align="left"),
+        h3("Lexical Diversity",align="left")
         ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
+    hr(),
+    fluidRow(
+        column(4, h3("Keywords",align="center")),
+        column(8, h3("Plot sentiments",align="center"))
+    ),
+    fluidRow(
+        column(4, h3("Keywords",align="center")),
+        column(8, h3("Plot sentiments",align="center"))
     )
+ 
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
-    })
+    output$author <- renderText(df$creator)
+    output$title <- renderText(df$title)
+    output$genre <- renderText(df$subject)
+    output$publisher <- renderText(df$publisher)
+    output$isbn <- renderText(df$identifier)
+    output$isbn <- renderText(df$identifier)
+    output$date <- renderText(as.character(as.Date(df$date)))
 }
 
 # Run the application 
