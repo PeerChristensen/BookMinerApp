@@ -1,114 +1,358 @@
 
+# Shiny
 library(shiny)
-library(epubr)
-library(tidyverse)
 library(shinythemes)
+library(shinybusy)
+# Text
 library(textrank)
-library(udpipe)
+library(spacyr)
+library(tidytext)
 library(sentimentr)
+library(quanteda)
+# Data
+library(epubr)
 library(data.table)
-library(zoo)
+library(tidyverse)
+library(networkD3)
+library(widyr)
 
-# Files
-file <- "DaVinciCode.epub"
-df <- epub(file)
-anno <- read_csv("anno.csv")
+red <- "#C41A24"
 
-#sentiments
-df_row <- tibble(text = paste(df$data[[1]]$text,collapse = ","))
-sentiments <- sentiment(get_sentences(df_row$text))
+# readability <- quanteda::textstat_readability(dfCorpus,
+#                                               measure = c("Flesch")) %>%
+#     as_tibble() %>%
+#     select(Flesch) %>%
+#     mutate(level = case_when(Flesch > 90 ~ "very easy",
+#                              Flesch > 80 ~ "easy",
+#                              Flesch > 70 ~ "fairly easy",
+#                              Flesch > 60 ~ "medium difficulty",
+#                              Flesch > 50 ~ "fairly difficult",
+#                              Flesch > 30 ~ "difficult",
+#                              Flesch > 0  ~ "very difficult"),
+#            row="a")
 
-sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
+# ents_full <- entity_extract(anno) %>%
+#     # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"
+#     ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
+#     filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
+#     mutate(entity = str_replace_all(entity,"_"," "))
+# ents <- ents_full %>%
+#     group_by(entity_type) %>%
+#     count(entity) %>%
+#     group_by(entity) %>%
+#     arrange(desc(n)) %>%
+#     top_n(1,n) %>%
+#     mutate(entity_type =   fct_relevel(entity_type, "PERSON", "NORP","GPE","FAC"))
+# ents_plot <- ents %>%
+#     group_by(entity_type) %>%
+#     count(entity) %>%
+#     top_n(8,n) %>%
+#     ungroup()     %>%
+#     arrange(entity_type, -n) %>%
+#     filter(n>=2) %>%
+#     mutate(order = rev(row_number()),
+#            colour = case_when(entity_type == "FAC"    ~ "goldenrod",
+#                               entity_type == "GPE"    ~ "forestgreen",
+#                               entity_type == "NORP"   ~ "blue3",
+#                               entity_type == "PERSON" ~ "#C41A24"))
+#  pairs <- ents_full %>%
+#      widyr::pairwise_count(entity, doc_id, sort = TRUE)
+# network <- pairs %>%
+#     top_frac(.1) %>%
+#     # filter(n > 5)  %>%
+#     graph_from_data_frame() %>%
+#     igraph_to_networkD3()
+# ents2 <- ents %>%
+#     group_by(entity_type) %>%
+#     count(entity) %>%
+#     group_by(entity) %>%
+#     arrange(desc(n)) %>%
+#     top_n(1,n)
+# network$nodes <- network$nodes %>%
+#     left_join(ents, by = c("name" = "entity"))
 
-sentiments <- sentiments %>%
-    group_by(part) %>%
-    summarise(m = mean(sentiment)) %>%
-    mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right"))
+# ---------------------------------------------------------------------
+# UI
+# ---------------------------------------------------------------------
 
-# Keywords
-stats <- textrank_keywords(anno$lemma, 
-                           relevant = anno$pos %in% c("NOUN", "ADJ"), 
-                           ngram_max = 8, sep = " ")
-
-stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
-
-top_tr <- stats %>%
-    top_n(5,freq)
-
-stats2 <- keywords_rake(x = anno, 
-                        term = "token", group = c("sentence_id"),
-                        relevant = anno$pos %in% c("NOUN", "ADJ"),
-                        ngram_max = 4)
-
-top_rake <-stats2 %>%
-    filter(freq >=5) %>%
-    top_n(5,rake) %>% 
-    select(-rake)
-
-keywords <- rbind(top_tr,top_rake) %>%
-    distinct(keyword, .keep_all = T) %>%
-    arrange(desc(freq)) %>%
-    mutate(order = row_number())
-
-# Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("slate"),
+                add_busy_spinner(spin = "fading-circle",margin=c(40,30),color="snow"),#add_busy_bar(color = "snow"),
 
-    # Application title
-    
-           titlePanel(h1("ePub-A-Lula!",align="center")),
-    fluidRow(column(12,actionButton("upload", "Upload ePub"),align="center",style='padding:20px;')),
-    splitLayout(h4("Author",align="center"),
-                h4("Title",align="center"),
-                h4("Genre",align="center"),
-                h4("Publisher",align="center"),
-                h4("ISBN",align="center"),
-                h4("Date",align="center")),
+           titlePanel(h1("ePub - A - Lula",align="center",
+                         style='color: snow;
+                         font-family: Roboto Condensed;
+                         font-size: 45px;
+                         font-weight: bold;
+                         background-color:#C41A24;
+                         padding-bottom: 20px;
+                         padding-top: 20px')),
+    fluidRow(
+        column(12,
+               fileInput("file", h3("Upload ePub"),accept = ".epub",
+                         placeholder="",width="25%"),align="center",
+               style='padding:20px;
+               color: snow;
+               font-size: 18px;
+               font-weight: bold;
+               font-family: Roboto Condensed;')),
     splitLayout(
-        h5(textOutput("author"),align="center"),
-        h5(textOutput("title"),align="center"),
-        h5(textOutput("genre"),align="center"),
-        h5(textOutput("publisher"),align = "center"),
-        h5(textOutput("isbn"),align = "center"),
-        h5(textOutput("date"),align = "center")),
+    h3("Author",align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+                h3("Title",align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+                h3("Genre",align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+                h3("Publisher",align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+                h3("ISBN",align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+                h3("Date",align="center",style='color: snow;
+                         font-family: Roboto Condensed;')),
+    splitLayout(
+        h4(textOutput("author"),align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+        h4(textOutput("title"),align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+        h4(textOutput("genre"),align="center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+        h4(textOutput("publisher"),align = "center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+        h4(textOutput("isbn"),align = "center",style='color: snow;
+                         font-family: Roboto Condensed;'),
+        h4(textOutput("date"),align = "center",style='color: snow;
+                         font-family: Roboto Condensed;')),
     hr(),
-    splitLayout(
-        h3("Readability",align="left"),
-        h3("Lexical Diversity",align="left")
+    fluidRow(column(12,
+        h3("Readability",align="center",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;')
+        )),
+    fluidRow(column(2,h4("Difficult"),align="right",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;'),
+             column(8,plotOutput("readability",width = "100%",height = "170px"),align="center"),
+             column(2, h4("Easy"),align="left",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;')
         ),
     hr(),
     fluidRow(
-        column(5, h3("Keywords",align="center")),
-        column(7, h3("Plot sentiments",align="center"))
+        column(5, h3("Keywords",align="center",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;')),
+        column(7, h3("Sentiment structure",align="center",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;'))
     ),
     fluidRow(
         column(5, plotOutput("keywords",width = "90%"),align="center"),
         column(7, plotOutput("sentiment",width = "90%"),align="center")
-    )
- 
+    ),
+    hr(),
+    fluidRow(column(12, h3("Named entities"),align="center",style='color: snow; font-weight: bold;
+                         font-family: Roboto Condensed;')),
+   # fluidRow(column(12,plotOutput("ner",width = "80%",height = "1000px"),align="center")),
+   fluidRow(
+            column(12,offset=2,
+                   mainPanel(
+                       tabsetPanel(
+                            tabPanel("Frequency",
+                                plotOutput("ner",width = "100%",height = "1000px")),
+                            tabPanel("Co-occurence Network",
+                                forceNetworkOutput("cooc",width = "100%",height = "1200px")
+                                     )
+                            )
+                       )
+                   ,align="center")
+              ),
+   hr()
 )
 
-# Define server logic required to draw a histogram
-server <- function(input, output) {
+# ---------------------------------------------------------------------
+# SERVER
+# ---------------------------------------------------------------------
 
-    output$author <- renderText(df$creator)
-    output$title <- renderText(df$title)
-    output$genre <- renderText(df$subject)
+server <- function(input, output) {
+  
+    observe({
+        file = input$file
+
+        if (is.null(file)) {
+            return(NULL)
+        }
+    df = epub(file$datapath)
+    
+    # one row
+    df_row <- tibble(text = paste(df$data[[1]]$text,collapse = ","))
+    
+    # sentences
+    df_sentences <- df$data[[1]] %>%
+         unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
+         mutate(sentences = tm::removePunctuation(sentences))
+    
+    # annotated
+    anno <- spacy_parse(df_sentences$sentences)
+    
+    # Meta data
+    output$author    <- renderText(df$creator)
+    output$title     <- renderText(df$title)
+    output$genre     <- renderText(df$subject)
     output$publisher <- renderText(df$publisher)
-    output$isbn <- renderText(df$identifier)
-    output$isbn <- renderText(df$identifier)
-    output$date <- renderText(as.character(as.Date(df$date)))
-    output$keywords <- renderPlot({
-        keywords %>% 
+    output$isbn      <- renderText(df$identifier)
+    output$isbn      <- renderText(df$identifier)
+    output$date      <- renderText(as.character(as.Date(df$date)))
+    
+    # Keywords
+    stats <- textrank_keywords(anno$lemma,
+                               relevant = anno$pos %in% c("NOUN", "ADJ"),
+                               ngram_max = 8, sep = " ")
+    stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
+    top_tr <- stats %>%
+        top_n(5,freq)
+    stats2 <- keywords_rake(x = anno,
+                            term = "token", group = c("sentence_id"),
+                            relevant = anno$pos %in% c("NOUN", "ADJ"),
+                            ngram_max = 4)
+    top_rake <-stats2 %>%
+        filter(freq >=5) %>%
+        top_n(5,rake) %>%
+        select(-rake)
+    keywords <- rbind(top_tr,top_rake) %>%
+        distinct(keyword, .keep_all = T) %>%
+        arrange(desc(freq)) %>%
+        mutate(order = row_number())
+    output$keywords  <- renderPlot({
+        keywords %>%
             ggplot(aes(order,rev(freq))) +
-            geom_col() +
+            geom_col(fill=red,width=.7) +
             coord_flip() +
             scale_x_continuous(breaks = keywords$order,
-                               labels = keywords$keyword) 
+                               labels = keywords$keyword) +
+            theme(axis.text = element_text(family = "Roboto Condensed",
+                                           colour = "snow",size = 16),
+                  axis.title = element_blank(),
+                  plot.background = element_rect(fill="#272B30",
+                                                 color = "#272B30", size = 0),
+                  panel.background = element_rect(fill="#272B30",
+                                                  color = "#272B30", size = 0),
+                  panel.grid = element_blank())
     })
+    
+    # Sentiments
+    sentiments <- sentiment(get_sentences(df_row$text))
+    sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
+    
+    sentiments <- sentiments %>%
+        group_by(part) %>%
+        summarise(m = mean(sentiment)) %>%
+        mutate(rollmean = frollmean(m, n = 50, fill = 0, align = "right"))
+    
     output$sentiment <- renderPlot({
         sentiments %>%
             ggplot(aes(as.numeric(part),rollmean)) +
-            geom_smooth(se=F)
+            geom_col(colour="snow",alpha=.01,width=.2) +
+            geom_smooth(se=F,colour=red,size=2.5,method="gam") +
+            theme_void() +
+            theme(plot.background  = element_rect(fill="#272B30"),
+                  panel.background = element_rect(fill="#272B30",
+                                                  color = "#272B30", size = 0),
+                  panel.grid = element_blank())
+    })
+    # readability
+    dfCorpus <- quanteda::corpus(df_row,  text_field = "text")
+    readability <- quanteda::textstat_readability(dfCorpus,
+                                                  measure = c("Flesch")) %>%
+        as_tibble() %>%
+        select(Flesch) %>%
+        mutate(row="a")
+    output$readability <- renderPlot( {
+        readability %>%
+            ggplot(aes(row,max)) +
+            #geom_col(width=.3,fill="snow",colour="grey",size=1.5) +
+            geom_col(width=.4, fill = "#1a9850",aes(row,100),colour="lightgrey") +
+            geom_col(width=.4, fill = "#a6d96a",aes(row,90),colour="lightgrey") +
+            geom_col(width=.4, fill = "#d9ef8b",aes(row,80),colour="lightgrey") +
+            geom_col(width=.4, fill = "#fee08b",aes(row,70),colour="lightgrey") +
+            geom_col(width=.4, fill = "#fdae61",aes(row,60),colour="lightgrey") +
+            geom_col(width=.4, fill = "#f46d43",aes(row,50),colour="lightgrey") +
+            geom_col(width=.4, fill = "#d73027",aes(row,30),colour="lightgrey") +
+            geom_hline(yintercept = readability$Flesch, size = 9,colour="lightgrey") +
+            geom_hline(yintercept = readability$Flesch, size = 7,colour="snow") +
+           # ggplot2::annotate("text",size=7,colour="snow", family = "Roboto Condensed",
+           #                      x=0.6,y=readability$Flesch-20,
+           #                     label = glue::glue("{readability$level}")) +
+            coord_flip() +
+            theme_void() +
+            theme(plot.margin = margin(2, 0, 2, 0, "cm"),
+                plot.background = element_rect(fill="#272B30",
+                                               color = "#272B30", size = 0),
+                panel.background = element_rect(fill="#272B30",
+                                                color = "#272B30", size = 0))
+    })
+    
+    # NER
+    ents_full <- entity_extract(anno) %>%
+        # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"
+        ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
+        filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
+        mutate(entity = str_replace_all(entity,"_"," "))
+    ents <- ents_full %>%
+        group_by(entity_type) %>%
+        count(entity) %>%
+        group_by(entity) %>%
+        arrange(desc(n)) %>%
+        top_n(1,n)# %>%
+        #mutate(entity_type = fct_relevel(entity_type, "PERSON", "NORP","GPE","FAC"))
+    ents_plot <- ents %>%
+        group_by(entity_type) %>%
+        count(entity) %>%
+        top_n(8,n) %>%
+        ungroup()     %>%
+        arrange(entity_type, -n) %>%
+        filter(n>=2) %>%
+        mutate(order = rev(row_number()),
+               colour = case_when(entity_type == "FAC"    ~ "goldenrod",
+                                  entity_type == "GPE"    ~ "forestgreen",
+                                  entity_type == "NORP"   ~ "blue3",
+                                  entity_type == "PERSON" ~ "#C41A24")) 
+    pairs <- ents_full %>%
+        widyr::pairwise_count(entity, doc_id, sort = TRUE)
+    network <- pairs %>%
+        top_frac(.1) %>%
+        # filter(n > 5)  %>%
+        graph_from_data_frame() %>%
+        igraph_to_networkD3()
+    network$nodes <- network$nodes %>%
+        left_join(ents, by = c("name" = "entity"))
+    output$ner <- renderPlot({
+        ents_plot %>%
+            ggplot(aes(order,n)) +
+            geom_col(width=.7,fill=ents_plot$colour) +
+            scale_x_continuous(
+                breaks = ents_plot$order,
+                labels = ents_plot$entity,
+                expand = c(0,0)) +
+            facet_wrap(~entity_type,scales="free") +
+            coord_flip() +
+            theme_void() +
+            theme(axis.text.y =element_text(size=16,family="Roboto Condensed",colour = "snow"),
+                  strip.text = element_text(size=20,family="Roboto Condensed",vjust=7),
+                  panel.spacing = unit(2, "cm"),
+                  strip.text.x = element_text(margin = margin(t = 30),colour="snow"),
+                  axis.text.x = element_blank(),
+                  plot.margin = margin(1, 0, 0, 0, "cm"),
+                  plot.background = element_rect(fill="#272B30",
+                                                 color = "#272B30", size = 0),
+                  panel.background = element_rect(fill="#272B30",
+                                                  color = "#272B30", size = 0))
+    })
+    output$cooc <- renderForceNetwork({
+
+        my_color <- 'd3.scaleOrdinal() .domain(["PERSON", "NORP","GPE", "FAC"]) .range(["#C41A24", "blue" , "green", "yellow"])'
+
+        forceNetwork(Links = network$links, Nodes = network$nodes,
+                     Source = 'source', Target = 'target',
+                     NodeID = 'name', Group = 'entity_type',
+                     Value='value', Nodesize = 'n',fontSize=35,
+                     colourScale = my_color, zoom = T,
+                     fontFamily = "Roboto Condensed", linkDistance = 100,
+                     linkColour = "snow")
+    })
     })
 }
 

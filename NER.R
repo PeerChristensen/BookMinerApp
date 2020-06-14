@@ -58,7 +58,7 @@ library(cleanNLP)
 # Packages for Python
 library(reticulate)
 use_virtualenv("r-reticulate")
-use_python("/Users/peerchristensen/anaconda/bin/python")
+#use_python("/Users/peerchristensen/anaconda/bin/python")
 
 
 # cnlp_init_spacy()
@@ -84,20 +84,33 @@ ents <- entity_extract(anno2) %>%
 ents_plot <- ents %>% 
   group_by(entity_type) %>%
   count(entity) %>%
-  top_n(10,n) %>%
+  top_n(8,n) %>%
   ungroup()     %>%
   arrange(entity_type, -n) %>%
   filter(n>=2) %>%
-  mutate(order = rev(row_number()))
+  mutate(order = rev(row_number())) %>%
+  mutate(entity = str_replace(entity,"_"," "))
   
+
+red <- "#C41A24"
+
 ents_plot %>%
   ggplot(aes(order,n)) +
-  geom_col() +
+  geom_col(width=.7,fill = red) +
   scale_x_continuous(
     breaks = ents_plot$order,
     labels = ents_plot$entity,
     expand = c(0,0)) +
   facet_wrap(~entity_type,scales="free") +
-  coord_flip() 
-
+  coord_flip() +
+  theme_void() +
+  theme(axis.text.y =element_text(size=16,family="Roboto Condensed",colour = "snow"),
+        strip.text = element_text(size=20,family="Roboto Condensed",vjust=7),
+        panel.spacing = unit(2, "cm"),
+        strip.text.x = element_text(margin = margin(t = 30),colour="snow"),
+        axis.text.x = element_blank(),
+        plot.background = element_rect(fill="#272B30",
+                                     color = "#272B30", size = 0),
+        panel.background = element_rect(fill="#272B30",
+                                      color = "#272B30", size = 0))
 

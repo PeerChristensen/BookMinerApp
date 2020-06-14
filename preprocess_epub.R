@@ -8,6 +8,8 @@ library(tidyverse)
 #(x <- epub(file))
 
 file <- "DaVinciCode.epub"
+file <- "pp.epub"
+file <- "ul.epub"
 
 df <- epub(file)
 

@@ -37,8 +37,12 @@ sentiments3 <- sentiments %>%
   
 sentiments3 %>%
   ggplot(aes(as.numeric(part),rollmean)) +
-  geom_line() +
-  geom_smooth(se=F)
+  geom_col() +
+  geom_smooth(se=F) +
+  theme_void() +
+  theme(plot.background = element_rect(fill="#272B30"),
+        panel.background = element_rect(fill="#272B30"),
+        panel.grid = element_blank())
 
 
 
