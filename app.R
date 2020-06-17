@@ -18,59 +18,6 @@ library(widyr)
 
 red <- "#C41A24"
 
-# readability <- quanteda::textstat_readability(dfCorpus,
-#                                               measure = c("Flesch")) %>%
-#     as_tibble() %>%
-#     select(Flesch) %>%
-#     mutate(level = case_when(Flesch > 90 ~ "very easy",
-#                              Flesch > 80 ~ "easy",
-#                              Flesch > 70 ~ "fairly easy",
-#                              Flesch > 60 ~ "medium difficulty",
-#                              Flesch > 50 ~ "fairly difficult",
-#                              Flesch > 30 ~ "difficult",
-#                              Flesch > 0  ~ "very difficult"),
-#            row="a")
-
-# ents_full <- entity_extract(anno) %>%
-#     # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"
-#     ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
-#     filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
-#     mutate(entity = str_replace_all(entity,"_"," "))
-# ents <- ents_full %>%
-#     group_by(entity_type) %>%
-#     count(entity) %>%
-#     group_by(entity) %>%
-#     arrange(desc(n)) %>%
-#     top_n(1,n) %>%
-#     mutate(entity_type =   fct_relevel(entity_type, "PERSON", "NORP","GPE","FAC"))
-# ents_plot <- ents %>%
-#     group_by(entity_type) %>%
-#     count(entity) %>%
-#     top_n(8,n) %>%
-#     ungroup()     %>%
-#     arrange(entity_type, -n) %>%
-#     filter(n>=2) %>%
-#     mutate(order = rev(row_number()),
-#            colour = case_when(entity_type == "FAC"    ~ "goldenrod",
-#                               entity_type == "GPE"    ~ "forestgreen",
-#                               entity_type == "NORP"   ~ "blue3",
-#                               entity_type == "PERSON" ~ "#C41A24"))
-#  pairs <- ents_full %>%
-#      widyr::pairwise_count(entity, doc_id, sort = TRUE)
-# network <- pairs %>%
-#     top_frac(.1) %>%
-#     # filter(n > 5)  %>%
-#     graph_from_data_frame() %>%
-#     igraph_to_networkD3()
-# ents2 <- ents %>%
-#     group_by(entity_type) %>%
-#     count(entity) %>%
-#     group_by(entity) %>%
-#     arrange(desc(n)) %>%
-#     top_n(1,n)
-# network$nodes <- network$nodes %>%
-#     left_join(ents, by = c("name" = "entity"))
-
 # ---------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------
@@ -86,81 +33,90 @@ ui <- fluidPage(theme = shinytheme("slate"),
                          background-color:#C41A24;
                          padding-bottom: 20px;
                          padding-top: 20px')),
-    fluidRow(
-        column(12,
-               fileInput("file", h3("Upload ePub"),accept = ".epub",
-                         placeholder="",width="25%"),align="center",
-               style='padding:20px;
-               color: snow;
-               font-size: 18px;
-               font-weight: bold;
-               font-family: Roboto Condensed;')),
-    splitLayout(
-    h3("Author",align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-                h3("Title",align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-                h3("Genre",align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-                h3("Publisher",align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-                h3("ISBN",align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-                h3("Date",align="center",style='color: snow;
-                         font-family: Roboto Condensed;')),
-    splitLayout(
-        h4(textOutput("author"),align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-        h4(textOutput("title"),align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-        h4(textOutput("genre"),align="center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-        h4(textOutput("publisher"),align = "center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-        h4(textOutput("isbn"),align = "center",style='color: snow;
-                         font-family: Roboto Condensed;'),
-        h4(textOutput("date"),align = "center",style='color: snow;
-                         font-family: Roboto Condensed;')),
-    hr(),
-    fluidRow(column(12,
-        h3("Readability",align="center",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;')
-        )),
-    fluidRow(column(2,h4("Difficult"),align="right",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;'),
-             column(8,plotOutput("readability",width = "100%",height = "170px"),align="center"),
-             column(2, h4("Easy"),align="left",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;')
+           fluidRow(
+               column(12,
+                      fileInput("file", h3("Upload ePub"),accept = ".epub",
+                         placeholder="",width="25%"),align="center", 
+                         style='padding:20px;
+                                color: snow;
+                                font-size: 18px;
+                                font-weight: bold;
+                                font-family: Roboto Condensed;')),
+           splitLayout(
+               h3("Author",align="center",
+                    style='color: snow;font-family: Roboto Condensed;'),
+               h3("Title",align="center",
+                   style='color: snow;font-family: Roboto Condensed;'),
+               h3("Genre",align="center",
+                   style='color: snow; font-family: Roboto Condensed;'),
+               h3("Publisher",align="center",
+                   style='color: snow; font-family: Roboto Condensed;'),
+               h3("ISBN",align="center",
+                   style='color: snow;font-family: Roboto Condensed;'),
+               h3("Date",align="center",
+                   style='color: snow;font-family: Roboto Condensed;')),
+        splitLayout(
+               h4(textOutput("author"),align="center",
+                   style='color: snow;font-family: Roboto Condensed;'),
+                h4(textOutput("title"),align="center",
+                    style='color: snow;font-family: Roboto Condensed;'),
+                h4(textOutput("genre"),align="center",
+                    style='color: snow;font-family: Roboto Condensed;'),
+                h4(textOutput("publisher"),align = "center",
+                    style='color: snow;font-family: Roboto Condensed;'),
+                h4(textOutput("isbn"),align = "center",
+                    style='color: snow;font-family: Roboto Condensed;'),
+                h4(textOutput("date"),align = "center",
+                    style='color: snow;font-family: Roboto Condensed;')),
+        hr(),
+        fluidRow(
+            column(12,
+                h3("Readability",align="center",
+                    style='color: snow; font-weight: bold;font-family: Roboto Condensed;')
+                )
+            ),
+        fluidRow(
+            column(2,
+                h4("Difficult"),align="right",
+                    style='color: snow; font-weight: bold;font-family: Roboto Condensed;'),
+             column(8,
+                    plotOutput("readability",width = "100%",height = "170px"),align="center"),
+             column(2,
+                h4("Easy"),align="left",
+                    style='color: snow; font-weight: bold;font-family: Roboto Condensed;')
         ),
-    hr(),
-    fluidRow(
-        column(5, h3("Keywords",align="center",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;')),
-        column(7, h3("Sentiment structure",align="center",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;'))
-    ),
-    fluidRow(
-        column(5, plotOutput("keywords",width = "90%"),align="center"),
-        column(7, plotOutput("sentiment",width = "90%"),align="center")
-    ),
-    hr(),
-    fluidRow(column(12, h3("Named entities"),align="center",style='color: snow; font-weight: bold;
-                         font-family: Roboto Condensed;')),
-   # fluidRow(column(12,plotOutput("ner",width = "80%",height = "1000px"),align="center")),
-   fluidRow(
-            column(12,offset=2,
+        hr(),
+        fluidRow(
+            column(5,
+                   h3("Keywords",align="center",
+                        style='color: snow; font-weight: bold; font-family: Roboto Condensed;')),
+            column(7,
+                   h3("Sentiment structure",align="center",
+                        style='color: snow; font-weight: bold;font-family: Roboto Condensed;'))
+        ),
+        fluidRow(
+            column(5, plotOutput("keywords",width = "90%"),align="center"),
+            column(7, plotOutput("sentiment",width = "90%"),align="center")
+        ),
+        hr(),
+        fluidRow(
+            column(12, 
+                h3("Named entities"),align="center",
+                    style='color: snow; font-weight: bold;font-family: Roboto Condensed;')),
+        fluidRow(
+            column(12,offset=2,align="center",
                    mainPanel(
                        tabsetPanel(
                             tabPanel("Frequency",
                                 plotOutput("ner",width = "100%",height = "1000px")),
                             tabPanel("Co-occurence Network",
                                 forceNetworkOutput("cooc",width = "100%",height = "1200px")
-                                     )
+                                )
                             )
                        )
-                   ,align="center")
+                   )
               ),
-   hr()
+        hr()
 )
 
 # ---------------------------------------------------------------------
@@ -168,14 +124,15 @@ ui <- fluidPage(theme = shinytheme("slate"),
 # ---------------------------------------------------------------------
 
 server <- function(input, output) {
-  
+    
+    # input data
     observe({
         file = input$file
 
         if (is.null(file)) {
             return(NULL)
         }
-    df = epub(file$datapath)
+    df <- epub(file$datapath)
     
     # one row
     df_row <- tibble(text = paste(df$data[[1]]$text,collapse = ","))
@@ -234,7 +191,7 @@ server <- function(input, output) {
     })
     
     # Sentiments
-    sentiments <- sentiment(get_sentences(df_row$text))
+    sentiments      <- sentiment(get_sentences(df_row$text))
     sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
     
     sentiments <- sentiments %>%
@@ -253,6 +210,7 @@ server <- function(input, output) {
                                                   color = "#272B30", size = 0),
                   panel.grid = element_blank())
     })
+    
     # readability
     dfCorpus <- quanteda::corpus(df_row,  text_field = "text")
     readability <- quanteda::textstat_readability(dfCorpus,
@@ -263,7 +221,6 @@ server <- function(input, output) {
     output$readability <- renderPlot( {
         readability %>%
             ggplot(aes(row,max)) +
-            #geom_col(width=.3,fill="snow",colour="grey",size=1.5) +
             geom_col(width=.4, fill = "#1a9850",aes(row,100),colour="lightgrey") +
             geom_col(width=.4, fill = "#a6d96a",aes(row,90),colour="lightgrey") +
             geom_col(width=.4, fill = "#d9ef8b",aes(row,80),colour="lightgrey") +
@@ -273,9 +230,6 @@ server <- function(input, output) {
             geom_col(width=.4, fill = "#d73027",aes(row,30),colour="lightgrey") +
             geom_hline(yintercept = readability$Flesch, size = 9,colour="lightgrey") +
             geom_hline(yintercept = readability$Flesch, size = 7,colour="snow") +
-           # ggplot2::annotate("text",size=7,colour="snow", family = "Roboto Condensed",
-           #                      x=0.6,y=readability$Flesch-20,
-           #                     label = glue::glue("{readability$level}")) +
             coord_flip() +
             theme_void() +
             theme(plot.margin = margin(2, 0, 2, 0, "cm"),
@@ -287,8 +241,6 @@ server <- function(input, output) {
     
     # NER
     ents_full <- entity_extract(anno) %>%
-        # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"
-        ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
         filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
         mutate(entity = str_replace_all(entity,"_"," "))
     ents <- ents_full %>%
@@ -296,8 +248,7 @@ server <- function(input, output) {
         count(entity) %>%
         group_by(entity) %>%
         arrange(desc(n)) %>%
-        top_n(1,n)# %>%
-        #mutate(entity_type = fct_relevel(entity_type, "PERSON", "NORP","GPE","FAC"))
+        top_n(1,n)
     ents_plot <- ents %>%
         group_by(entity_type) %>%
         count(entity) %>%
@@ -314,7 +265,7 @@ server <- function(input, output) {
         widyr::pairwise_count(entity, doc_id, sort = TRUE)
     network <- pairs %>%
         top_frac(.1) %>%
-        # filter(n > 5)  %>%
+        top_n(250,n) %>%
         graph_from_data_frame() %>%
         igraph_to_networkD3()
     network$nodes <- network$nodes %>%

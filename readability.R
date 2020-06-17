@@ -49,7 +49,4 @@ df_dfm <- dfm(dfCorpus)
 
 textstat_lexdiv(df_dfm,measure = c("MTLD"))
 
-
 df <- tibble(val = 80,max = 100,row="a")
-
-
