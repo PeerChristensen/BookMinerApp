@@ -1,85 +1,21 @@
 # NER
 library(tidyverse)
-library(tidytext)
-library(entity)
+#library(tidytext)
+#library(entity)
+library(epubr)
+library(spacyr)
 
-df <- read_csv("DaVinciCode.csv")
+df <- epub("DaVinciCode.epub")
+df <- df$data[[1]]
 
-df <- df %>%
-  unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F,
-) %>%
-  mutate(sentences = tm::removePunctuation(sentences))
+spacy_initialize(model="en_core_web_lg")
 
+anno <- spacy_parse(df$text)
 
-# people
-tic()
-people <- person_entity(df$sentences) %>%
-  unlist() %>%
-  as_tibble() %>%
-  count(value) %>% 
-  arrange(desc(n)) %>% 
-  top_n(20,n)
-toc()
-
-# locations
-tic()
-locations <- location_entity(df$text) %>%
-  unlist() %>%
-  as_tibble() %>%
-  count(value) %>% 
-  arrange(desc(n)) %>% 
-  top_n(20,n)
-toc()
-
-# organizations
-tic()
-organizations <- organization_entity(df$text) %>%
-  unlist() %>%
-  as_tibble() %>%
-  count(value) %>% 
-  arrange(desc(n)) %>% 
-  top_n(20,n)
-toc()
-
-# map
-
-# spaCy
-# Packages for manipulating data
-
-library(stringr)
-library(lubridate)
-# Packages for NLP
-library(NLP)
-# install.packages("openNLPmodels.en",repos = "http://datacube.wu.ac.at/", type = "source")
-library(openNLP)
-library(cleanNLP)
-#cnlp_download_corenlp() # install the coreNLP Java back end 'CoreNLP' <http://stanfordnlp.github.io/CoreNLP/>
-# Packages for Python interface
-# Packages for Python
-library(reticulate)
-use_virtualenv("r-reticulate")
-#use_python("/Users/peerchristensen/anaconda/bin/python")
-
-
-# cnlp_init_spacy()
-# 
-# d <- paste(df$sentences,collapse = " ")
-# anno <- cnlp_annotate(d)
-# 
-# 
-# anno$entity %>%
-#   filter(entity_type == "GPE") %>%
-#   group_by(entity) %>%
-#   count() %>%
-#   arrange(desc(n)) 
-
-tic()
-anno2 <- spacy_parse(df$sentences)
-
-ents <- entity_extract(anno2) %>%
+ents <- entity_extract(anno) %>%
   # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"    
   ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
-  filter(entity_type %in% c("GPE","FAC","NORP","PERSON"))
+  filter(entity_type %in% c("GPE","FAC","NORP","PERSON","WORK"))
 
 ents_plot <- ents %>% 
   group_by(entity_type) %>%
@@ -89,7 +25,7 @@ ents_plot <- ents %>%
   arrange(entity_type, -n) %>%
   filter(n>=2) %>%
   mutate(order = rev(row_number())) %>%
-  mutate(entity = str_replace(entity,"_"," "))
+  mutate(entity = str_replace_all(entity,"_"," "))
   
 
 red <- "#C41A24"
@@ -114,3 +50,69 @@ ents_plot %>%
         panel.background = element_rect(fill="#272B30",
                                       color = "#272B30", size = 0))
 
+# OLD
+
+# df <- df %>%
+#   unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F,
+# ) %>%
+#   mutate(sentences = tm::removePunctuation(sentences))
+
+
+# # people
+# tic()
+# people <- person_entity(df$sentences) %>%
+#   unlist() %>%
+#   as_tibble() %>%
+#   count(value) %>% 
+#   arrange(desc(n)) %>% 
+#   top_n(20,n)
+# toc()
+# 
+# # locations
+# tic()
+# locations <- location_entity(df$text) %>%
+#   unlist() %>%
+#   as_tibble() %>%
+#   count(value) %>% 
+#   arrange(desc(n)) %>% 
+#   top_n(20,n)
+# toc()
+# 
+# # organizations
+# tic()
+# organizations <- organization_entity(df$text) %>%
+#   unlist() %>%
+#   as_tibble() %>%
+#   count(value) %>% 
+#   arrange(desc(n)) %>% 
+#   top_n(20,n)
+# toc()
+
+# # spaCy
+# # Packages for manipulating data
+# 
+# library(stringr)
+# library(lubridate)
+# # Packages for NLP
+# library(NLP)
+# install.packages("openNLPmodels.en",repos = "http://datacube.wu.ac.at/", type = "source")
+# library(openNLP)
+# library(cleanNLP)
+# cnlp_download_corenlp() # install the coreNLP Java back end 'CoreNLP' <http://stanfordnlp.github.io/CoreNLP/>
+# # Packages for Python interface
+# # Packages for Python
+# library(reticulate)
+# use_virtualenv("r-reticulate")
+# use_python("/Users/peerchristensen/anaconda/bin/python")
+
+# cnlp_init_spacy()
+# # 
+# d <- paste(df$sentences,collapse = " ")
+# anno <- cnlp_annotate(d)
+# # 
+# # 
+# anno$entity %>%
+#   filter(entity_type == "FAC") %>%
+#   group_by(entity) %>%
+#   count() %>%
+#   arrange(desc(n)) 

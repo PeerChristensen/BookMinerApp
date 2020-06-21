@@ -5,11 +5,15 @@ library(shinythemes)
 library(shinybusy)
 # Text
 library(textrank)
+library(reticulate)
 library(spacyr)
 library(tidytext)
 library(sentimentr)
+library(udpipe)
 library(quanteda)
 # Data
+library(igraph)
+library(ggraph)
 library(epubr)
 library(data.table)
 library(tidyverse)
@@ -17,6 +21,9 @@ library(networkD3)
 library(widyr)
 
 red <- "#C41A24"
+#use_python("/Users/peerchristensen/.pyenv/versions/3.7.3")
+spacy_initialize(model="en_core_web_lg")
+
 
 # ---------------------------------------------------------------------
 # UI
@@ -133,49 +140,64 @@ server <- function(input, output) {
             return(NULL)
         }
     df <- epub(file$datapath)
+    meta  <- df
+    df <- df$data[[1]]
     
     # one row
-    df_row <- tibble(text = paste(df$data[[1]]$text,collapse = ","))
+    df_row <- tibble(text = paste(df$text,collapse = ","))
     
     # sentences
-    df_sentences <- df$data[[1]] %>%
-         unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
-         mutate(sentences = tm::removePunctuation(sentences))
+    # df_sentences <- df$data[[1]] %>%
+    #      unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
+    #      mutate(sentences = tm::removePunctuation(sentences))
+    
+    # sentences <-spacy_tokenize(
+    #     df$text,
+    #     what = c("sentence"),
+    #     remove_punct = TRUE,
+    #     remove_url = TRUE,
+    #     remove_numbers = TRUE,
+    #     remove_separators = TRUE,
+    #     remove_symbols = TRUE,output="data.frame") %>%
+    #     as_tibble() %>%
+    #     mutate(sentence_id = row_number())
     
     # annotated
-    anno <- spacy_parse(df_sentences$sentences)
+    #anno <- spacy_parse(sentences$token)
+    anno <- spacy_parse(df$text)
     
     # Meta data
-    output$author    <- renderText(df$creator)
-    output$title     <- renderText(df$title)
-    output$genre     <- renderText(df$subject)
-    output$publisher <- renderText(df$publisher)
-    output$isbn      <- renderText(df$identifier)
-    output$isbn      <- renderText(df$identifier)
-    output$date      <- renderText(as.character(as.Date(df$date)))
+    output$author    <- renderText(meta$creator)
+    output$title     <- renderText(meta$title)
+    output$genre     <- renderText(meta$subject)
+    output$publisher <- renderText(meta$publisher)
+    output$isbn      <- renderText(meta$identifier)
+    output$isbn      <- renderText(meta$identifier)
+    output$date      <- renderText(as.character(as.Date(meta$date)))
     
     # Keywords
-    stats <- textrank_keywords(anno$lemma,
+    stats <- textrank_keywords(anno$token,
                                relevant = anno$pos %in% c("NOUN", "ADJ"),
-                               ngram_max = 8, sep = " ")
+                               ngram_max = 5, sep = " ")
     stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
     top_tr <- stats %>%
         top_n(5,freq)
-    stats2 <- keywords_rake(x = anno,
-                            term = "token", group = c("sentence_id"),
-                            relevant = anno$pos %in% c("NOUN", "ADJ"),
-                            ngram_max = 4)
-    top_rake <-stats2 %>%
-        filter(freq >=5) %>%
-        top_n(5,rake) %>%
-        select(-rake)
-    keywords <- rbind(top_tr,top_rake) %>%
+    # stats2 <- keywords_rake(x = anno,
+    #                         term = "lemma", group = c("doc_id"),
+    #                         relevant = anno$pos %in% c("NOUN", "ADJ"),
+    #                         ngram_max = 8)
+    # top_rake <-stats2 %>%
+    #     filter(freq >=5) %>%
+    #     top_n(5,rake) %>%
+    #     select(-rake)
+    #keywords <- rbind(top_tr,top_rake) %>%
+    keywords <- top_tr %>%
         distinct(keyword, .keep_all = T) %>%
         arrange(desc(freq)) %>%
-        mutate(order = row_number())
+        mutate(order = rev(row_number()))
     output$keywords  <- renderPlot({
         keywords %>%
-            ggplot(aes(order,rev(freq))) +
+            ggplot(aes(order,freq)) +
             geom_col(fill=red,width=.7) +
             coord_flip() +
             scale_x_continuous(breaks = keywords$order,
