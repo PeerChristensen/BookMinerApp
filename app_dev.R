@@ -1,3 +1,4 @@
+options(shiny.maxRequestSize = 30*1024^2)
 
 # Shiny
 library(shiny)
@@ -5,10 +6,10 @@ library(shinythemes)
 library(shinybusy)
 # Text
 library(textrank)
+library(reticulate)
 library(spacyr)
 library(tidytext)
 library(sentimentr)
-library(Sentida)
 library(udpipe)
 library(quanteda)
 # Data
@@ -19,11 +20,12 @@ library(data.table)
 library(tidyverse)
 library(networkD3)
 library(widyr)
-library(zoo)
+library(pdftools)
 
 red <- "#C41A24"
 #use_python("/Users/peerchristensen/.pyenv/versions/3.7.3")
-spacy_initialize(model="da_core_news_lg")
+spacy_initialize(model="en_core_web_lg")
+
 
 # ---------------------------------------------------------------------
 # UI
@@ -32,17 +34,17 @@ spacy_initialize(model="da_core_news_lg")
 ui <- fluidPage(theme = shinytheme("slate"),
                 add_busy_spinner(spin = "fading-circle",margin=c(40,30),color="snow"),#add_busy_bar(color = "snow"),
                 
-                titlePanel(h1("Book Miner",align="center",
+                titlePanel(h1("ePub - A - Lula",align="center",
                               style='color: snow;
-                         font-family: Lato;
-                         font-size: 70px;
+                         font-family: Roboto Condensed;
+                         font-size: 45px;
                          font-weight: bold;
                          background-color:#C41A24;
-                         padding-bottom: 40px;
-                         padding-top: 40px')),
+                         padding-bottom: 20px;
+                         padding-top: 20px')),
                 fluidRow(
                   column(12,
-                         fileInput("file", h3("Upload ePub"),accept = ".epub",
+                         fileInput("file", h3("Upload ePub"),accept = c(".epub",".pdf"),
                                    placeholder="",width="25%"),align="center", 
                          style='padding:20px;
                                 color: snow;
@@ -134,37 +136,18 @@ server <- function(input, output) {
   
   # input data
   observe({
+    
     file = input$file
     
     if (is.null(file)) {
       return(NULL)
     }
+    
+   if (tools::file_ext(file$datapath) == "epub") {
+    
     df <- epub(file$datapath)
     meta  <- df
     df <- df$data[[1]]
-    
-    # one row
-    df_row <- tibble(text = paste(df$text,collapse = ","))
-    
-    # sentences
-    # df_sentences <- df$data[[1]] %>%
-    #      unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
-    #      mutate(sentences = tm::removePunctuation(sentences))
-    
-    # sentences <-spacy_tokenize(
-    #   df$text,
-    #   what = c("sentence"),
-    #   remove_punct = TRUE,
-    #   remove_url = TRUE,
-    #   remove_numbers = TRUE,
-    #   remove_separators = TRUE,
-    #   remove_symbols = TRUE,output="data.frame") %>%
-    #   as_tibble() %>%
-    #   mutate(sentence_id = row_number())
-    
-    # annotated
-    #anno <- spacy_parse(sentences$token)
-    anno <- spacy_parse(df$text)
     
     # Meta data
     output$author    <- renderText(meta$creator)
@@ -175,28 +158,86 @@ server <- function(input, output) {
     output$isbn      <- renderText(meta$identifier)
     output$date      <- renderText(as.character(as.Date(meta$date)))
     
+    # one row
+    df_row <- tibble(text = paste(df$text,collapse = ","))
+    
+    } 
+    else if (tools::file_ext(file$datapath) == "pdf"){
+      df <- pdf_text(file$datapath)
+      df <- tibble(text=df)
+      meta = NULL
+      
+      # one row
+      df_row <- tibble(text = paste(df,collapse = ","))
+    }
+    
+    
+    
+    # sentences
+    # df_sentences <- df$data[[1]] %>%
+    #      unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
+    #      mutate(sentences = tm::removePunctuation(sentences))
+    
+    # sentences <-spacy_tokenize(
+    #     df$text,
+    #     what = c("sentence"),
+    #     remove_punct = TRUE,
+    #     remove_url = TRUE,
+    #     remove_numbers = TRUE,
+    #     remove_separators = TRUE,
+    #     remove_symbols = TRUE,output="data.frame") %>%
+    #     as_tibble() %>%
+    #     mutate(sentence_id = row_number())
+    
+    # annotated
+    #anno <- spacy_parse(sentences$token)
+    anno <- spacy_parse(df$text)
+    
+   
     # Keywords
-    # stats <- textrank_keywords(anno$lemma,
-    #                            relevant = anno$pos %in% c("NOUN", "ADJ"),
-    #                            ngram_max = 5, sep = " ")
-    # stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
-    # top_tr <- stats %>%
-    #   top_n(5,freq)
+    
+    #textrank
+    stats <- textrank_keywords(anno$token,
+                               relevant = anno$pos %in% c("NOUN", "ADJ"),
+                               ngram_max = 5, sep = " ")
+    stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
+    top_tr <- stats %>%
+      top_n(5,freq) %>%
+      select(-ngram)
+    
+    #RAKE
     stats2 <- keywords_rake(x = anno,
-                            term = "lemma", group = c("doc_id"),
-                            relevant = anno$pos %in% c("NOUN", "ADJ"),
-                            ngram_max = 8)
-    top_rake <-stats2 %>%
-      filter(freq >=5) %>%
-      top_n(5,rake) %>%
-      select(-rake)
-    keywords <- top_rake %>%
+                             term = "lemma", group = c("doc_id"),
+                             relevant = anno$pos %in% c("NOUN", "ADJ"),
+                             ngram_max = 8)
+     top_rake <-stats2 %>%
+         filter(freq >=5) %>%
+         top_n(5,rake) %>%
+         select(-rake,-ngram) %>%
+         top_n(3,freq)
+     
+    #NPs
+     np <- spacy_extract_nounphrases(df$text)
+     
+     top_np <- np %>%
+       filter(length>2) %>%
+       group_by(text) %>%
+       count() %>%
+       arrange(desc(n)) %>%
+       ungroup() %>%
+       top_n(5,n) %>%
+       rename(keyword = text, freq = n) %>%
+       mutate(keyword = str_trim(str_replace(keyword,"the ","")))
+     
+    keywords <- rbind(top_tr,top_rake,top_np) %>%
       distinct(keyword, .keep_all = T) %>%
       arrange(desc(freq)) %>%
-      mutate(order = row_number())
+      filter(freq >= 10) %>%
+      mutate(order = rev(row_number()))
+    
     output$keywords  <- renderPlot({
       keywords %>%
-        ggplot(aes(order,rev(freq))) +
+        ggplot(aes(order,freq)) +
         geom_col(fill=red,width=.7) +
         coord_flip() +
         scale_x_continuous(breaks = keywords$order,
@@ -212,22 +253,13 @@ server <- function(input, output) {
     })
     
     # Sentiments
-    sentences <- get_sentences(df_row$text) %>% 
-      unlist() %>% 
-      as_tibble() %>%
-      mutate(sentence_id = row_number())  %>%
-      rename(text = value)
+    sentiments      <- sentiment(get_sentences(df_row$text))
+    sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
     
-    sentences$part <- cut(sentences$sentence_id, breaks = 1000,labels=1:1000)
-    
-    vsentida <- Vectorize(sentida)
-    
-    sentences$sentiment <- vsentida(sentences$text,output="total")
-    
-    sentiments <- sentences %>%
+    sentiments <- sentiments %>%
       group_by(part) %>%
       summarise(m = mean(sentiment)) %>%
-      mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right"))
+      mutate(rollmean = frollmean(m, n = 50, fill = 0, align = "right"))
     
     output$sentiment <- renderPlot({
       sentiments %>%
@@ -271,7 +303,7 @@ server <- function(input, output) {
     
     # NER
     ents_full <- entity_extract(anno) %>%
-      filter(entity_type %in% c("PER","ORG","LOC")) %>%
+      filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
       mutate(entity = str_replace_all(entity,"_"," "))
     ents <- ents_full %>%
       group_by(entity_type) %>%
@@ -287,10 +319,10 @@ server <- function(input, output) {
       arrange(entity_type, -n) %>%
       filter(n>=2) %>%
       mutate(order = rev(row_number()),
-             colour = case_when(
-                                entity_type == "LOC"    ~ "forestgreen",
-                                entity_type == "ORG"   ~ "blue3",
-                                entity_type == "PER" ~ "#C41A24"))
+             colour = case_when(entity_type == "FAC"    ~ "goldenrod",
+                                entity_type == "GPE"    ~ "forestgreen",
+                                entity_type == "NORP"   ~ "blue3",
+                                entity_type == "PERSON" ~ "#C41A24")) 
     pairs <- ents_full %>%
       widyr::pairwise_count(entity, doc_id, sort = TRUE)
     network <- pairs %>%
