@@ -32,84 +32,84 @@ spacy_initialize(model="en_core_web_lg")
 ui <- fluidPage(theme = shinytheme("slate"),
                 add_busy_spinner(spin = "fading-circle",margin=c(40,30),color="snow"),#add_busy_bar(color = "snow"),
                 
-                titlePanel(h1("ePub - A - Lula",align="center",
+                titlePanel(h1("Book Miner v. 1",align="center",
                               style='color: snow;
-                         font-family: Roboto Condensed;
-                         font-size: 45px;
+                         font-family: Lato;
+                         font-size: 70px;
                          font-weight: bold;
                          background-color:#C41A24;
-                         padding-bottom: 20px;
-                         padding-top: 20px')),
+                         padding-bottom: 40px;
+                         padding-top: 40px')),
                 fluidRow(
                   column(12,
-                         fileInput("file", h3("Upload ePub"),accept = c(".epub",".pdf"),
-                                   placeholder="",width="25%"),align="center", 
+                         fileInput("file", h2("Upload text"),accept = c(".epub",".pdf"),
+                                   placeholder="epub or pdf",width="25%"),align="center", 
                          style='padding:20px;
                                 color: snow;
                                 font-size: 18px;
                                 font-weight: bold;
-                                font-family: Roboto Condensed;')),
+                                font-family: Lato;')),
                 splitLayout(
-                  h3("Author",align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h3("Title",align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h3("Genre",align="center",
-                     style='color: snow; font-family: Roboto Condensed;'),
-                  h3("Publisher",align="center",
-                     style='color: snow; font-family: Roboto Condensed;'),
-                  h3("ISBN",align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h3("Date",align="center",
-                     style='color: snow;font-family: Roboto Condensed;')),
+                  h2("Author",align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h2("Title",align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h2("Genre",align="center",
+                     style='color: snow; font-family: Lato;'),
+                  h2("Publisher",align="center",
+                     style='color: snow; font-family: Lato;'),
+                  h2("ISBN",align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h2("Date",align="center",
+                     style='color: snow;font-family: Lato;')),
                 splitLayout(
-                  h4(textOutput("author"),align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h4(textOutput("title"),align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h4(textOutput("genre"),align="center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h4(textOutput("publisher"),align = "center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h4(textOutput("isbn"),align = "center",
-                     style='color: snow;font-family: Roboto Condensed;'),
-                  h4(textOutput("date"),align = "center",
-                     style='color: snow;font-family: Roboto Condensed;')),
+                  h3(textOutput("author"),align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h3(textOutput("title"),align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h3(textOutput("genre"),align="center",
+                     style='color: snow;font-family: Lato;'),
+                  h3(textOutput("publisher"),align = "center",
+                     style='color: snow;font-family: Lato;'),
+                  h3(textOutput("isbn"),align = "center",
+                     style='color: snow;font-family: Lato;'),
+                  h3(textOutput("date"),align = "center",
+                     style='color: snow;font-family: Lato;')),
                 hr(),
                 fluidRow(
                   column(12,
-                         h3("Readability",align="center",
-                            style='color: snow; font-weight: bold;font-family: Roboto Condensed;')
+                         h2("Readability",align="center",
+                            style='color: snow; font-weight: bold;font-family: Lato;')
                   )
                 ),
                 fluidRow(
                   column(2,
-                         h4("Difficult"),align="right",
-                         style='color: snow; font-weight: bold;font-family: Roboto Condensed;'),
+                         h3("Difficult"),align="right",
+                         style='color: snow; font-weight: bold;font-family: Lato;'),
                   column(8,
                          plotOutput("readability",width = "100%",height = "170px"),align="center"),
                   column(2,
-                         h4("Easy"),align="left",
-                         style='color: snow; font-weight: bold;font-family: Roboto Condensed;')
+                         h3("Easy"),align="left",
+                         style='color: snow; font-weight: bold;font-family: Lato;')
                 ),
                 hr(),
                 fluidRow(
-                  column(5,
-                         h3("Keywords",align="center",
-                            style='color: snow; font-weight: bold; font-family: Roboto Condensed;')),
-                  column(7,
-                         h3("Sentiment structure",align="center",
-                            style='color: snow; font-weight: bold;font-family: Roboto Condensed;'))
+                  column(6,
+                         h2("Pace",align="center",
+                            style='color: snow; font-weight: bold; font-family: Lato;')),
+                  column(6,
+                         h2("Mood",align="center",
+                            style='color: snow; font-weight: bold;font-family: Lato;'))
                 ),
                 fluidRow(
-                  column(5, plotOutput("keywords",width = "90%"),align="center"),
+                #  column(5, plotOutput("keywords",width = "90%"),align="center"),
                   column(7, plotOutput("sentiment",width = "90%"),align="center")
                 ),
                 hr(),
                 fluidRow(
                   column(12, 
-                         h3("Named entities"),align="center",
-                         style='color: snow; font-weight: bold;font-family: Roboto Condensed;')),
+                         h2("Named entities"),align="center",
+                         style='color: snow; font-weight: bold;font-family: Lato;')),
                 fluidRow(
                   column(12,offset=2,align="center",
                          mainPanel(
@@ -117,10 +117,13 @@ ui <- fluidPage(theme = shinytheme("slate"),
                              tabPanel("Frequency",
                                       plotOutput("ner",width = "100%",height = "1000px")),
                              tabPanel("Co-occurence Network",
-                                      forceNetworkOutput("cooc",width = "100%",height = "1200px")
+                                      forceNetworkOutput("cooc",width = "100%",height = "1200px")),
+                             tabPanel("Keywords",
+                                      plotOutput("keywords",width = "100%",height = "700px"))
+                             
                              )
-                           )
-                         )
+                         ,style='color: snow;font-family: Lato;
+                         font-size: 25px')
                   )
                 ),
                 hr()
@@ -141,24 +144,24 @@ server <- function(input, output) {
       return(NULL)
     }
     
-   if (tools::file_ext(file$datapath) == "epub") {
-    
-    df <- epub(file$datapath)
-    meta  <- df
-    df <- df$data[[1]]
-    
-    # Meta data
-    output$author    <- renderText(meta$creator)
-    output$title     <- renderText(meta$title)
-    output$genre     <- renderText(meta$subject)
-    output$publisher <- renderText(meta$publisher)
-    output$isbn      <- renderText(meta$identifier)
-    output$isbn      <- renderText(meta$identifier)
-    output$date      <- renderText(as.character(as.Date(meta$date)))
-    
-    # one row
-    df_row <- tibble(text = paste(df$text,collapse = ","))
-    
+    if (tools::file_ext(file$datapath) == "epub") {
+      
+      df <- epub(file$datapath)
+      meta  <- df
+      df <- df$data[[1]]
+      
+      # Meta data
+      output$author    <- renderText(meta$creator)
+      output$title     <- renderText(meta$title)
+      output$genre     <- renderText(meta$subject)
+      output$publisher <- renderText(meta$publisher)
+      output$isbn      <- renderText(meta$identifier)
+      output$isbn      <- renderText(meta$identifier)
+      output$date      <- renderText(as.character(as.Date(meta$date)))
+      
+      # one row
+      df_row <- tibble(text = paste(df$text,collapse = ","))
+      
     } 
     else if (tools::file_ext(file$datapath) == "pdf"){
       df <- pdf_text(file$datapath)
@@ -191,7 +194,7 @@ server <- function(input, output) {
     #anno <- spacy_parse(sentences$token)
     anno <- spacy_parse(df$text)
     
-   
+    
     # Keywords
     
     #textrank
@@ -205,28 +208,28 @@ server <- function(input, output) {
     
     #RAKE
     stats2 <- keywords_rake(x = anno,
-                             term = "lemma", group = c("doc_id"),
-                             relevant = anno$pos %in% c("NOUN", "ADJ"),
-                             ngram_max = 8)
-     top_rake <-stats2 %>%
-         filter(freq >=5) %>%
-         top_n(5,rake) %>%
-         select(-rake,-ngram) %>%
-         top_n(3,freq)
-     
+                            term = "lemma", group = c("doc_id"),
+                            relevant = anno$pos %in% c("NOUN", "ADJ"),
+                            ngram_max = 8)
+    top_rake <-stats2 %>%
+      filter(freq >=5) %>%
+      top_n(5,rake) %>%
+      select(-rake,-ngram) %>%
+      top_n(3,freq)
+    
     #NPs
-     np <- spacy_extract_nounphrases(df$text)
-     
-     top_np <- np %>%
-       filter(length>2) %>%
-       group_by(text) %>%
-       count() %>%
-       arrange(desc(n)) %>%
-       ungroup() %>%
-       top_n(5,n) %>%
-       rename(keyword = text, freq = n) %>%
-       mutate(keyword = str_trim(str_replace(keyword,"the ","")))
-     
+    np <- spacy_extract_nounphrases(df$text)
+    
+    top_np <- np %>%
+      filter(length>2) %>%
+      group_by(text) %>%
+      count() %>%
+      arrange(desc(n)) %>%
+      ungroup() %>%
+      top_n(5,n) %>%
+      rename(keyword = text, freq = n) %>%
+      mutate(keyword = str_trim(str_replace(keyword,"the ","")))
+    
     keywords <- rbind(top_tr,top_rake,top_np) %>%
       distinct(keyword, .keep_all = T) %>%
       arrange(desc(freq)) %>%
@@ -240,7 +243,7 @@ server <- function(input, output) {
         coord_flip() +
         scale_x_continuous(breaks = keywords$order,
                            labels = keywords$keyword) +
-        theme(axis.text = element_text(family = "Roboto Condensed",
+        theme(axis.text = element_text(family = "Lato",
                                        colour = "snow",size = 16),
               axis.title = element_blank(),
               plot.background = element_rect(fill="#272B30",
@@ -341,8 +344,8 @@ server <- function(input, output) {
         facet_wrap(~entity_type,scales="free") +
         coord_flip() +
         theme_void() +
-        theme(axis.text.y =element_text(size=16,family="Roboto Condensed",colour = "snow"),
-              strip.text = element_text(size=20,family="Roboto Condensed",vjust=7),
+        theme(axis.text.y =element_text(size=16,family="Lato",colour = "snow"),
+              strip.text = element_text(size=20,family="Lato",vjust=7),
               panel.spacing = unit(2, "cm"),
               strip.text.x = element_text(margin = margin(t = 30),colour="snow"),
               axis.text.x = element_blank(),
@@ -361,7 +364,7 @@ server <- function(input, output) {
                    NodeID = 'name', Group = 'entity_type',
                    Value='value', Nodesize = 'n',fontSize=35,
                    colourScale = my_color, zoom = T,opacity = 0.9,
-                   fontFamily = "Roboto Condensed", linkDistance = 100,
+                   fontFamily = "Lato", linkDistance = 100,
                    linkColour = "snow")
     })
   })
