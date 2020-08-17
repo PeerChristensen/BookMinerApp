@@ -4,16 +4,20 @@ library(epubr)
 library(tidyverse)
 library(spacyr)
 library(stm)
+library(tidytext)
 
-df <- epub("DaVinciCode.epub")
+df <- epub("pride&prejudice.epub")
 
 df <- df$data[[1]]
 
 anno <- spacy_parse(df$text)
 
+anno$row <- 1:nrow(anno)
+anno$doc_id <- cut_interval(anno$row,
+                           length = 300)
+
 anno <- anno %>%
   filter(pos == "NOUN")
-
 
 d <- anno %>%
   select(doc_id,lemma)
@@ -23,16 +27,17 @@ d <- anno %>%
 
 df_sparse <- d %>%
   count(doc_id, lemma) %>%
-  filter(n>5) %>%
+  #filter(n>3) %>%
   cast_sparse(doc_id, lemma, n)
 
 
+n_topics = 10 #seq(2,12,2)
 
-n_topics = seq(2,12,2)
+#models <- tibble(K = n_topics) %>%
+#  mutate(topic_model = map(K, ~stm(df_sparse, K = ., verbose = T)))
 
-models <- tibble(K = n_topics) %>%
-  mutate(topic_model = map(K, ~stm(df_sparse, K = ., verbose = T)))
-
+model <- stm(df_sparse, K = n_topics, verbose = T)
+plot(model)
 
 heldout <- make.heldout(df_sparse)
 
@@ -128,7 +133,7 @@ animate(anim_plot, nframes = 10, fps = 0.5)
 # SELECT STM MODELS
 
 topic_model_stm_small <- k_result %>% 
-  filter(K ==4)             %>% 
+  filter(K ==15)             %>% 
   pull(topic_model)         %>% 
   .[[1]]
 
@@ -175,7 +180,7 @@ stm_plot_small <- gamma_terms_small %>%
   coord_flip() +
   scale_y_continuous(expand = c(0,0),
                      limits = c(0, max(gamma_terms_small$gamma)+.3),
-                     labels = percent_format()) +
+                     labels = scales::percent_format()) +
   labs(x = NULL, y = expression(gamma),
        title = "Topics by prevalence",
        subtitle = "With the top words that contribute to each topic") +

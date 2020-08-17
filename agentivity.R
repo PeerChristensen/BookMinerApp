@@ -41,4 +41,32 @@ anno2 %>%
   mutate(agentivity = nsubj / (nsubj + obl + obj + iobj)) %>%
   select(token, agentivity)
 
+#####################################################################
+# verbs associated with characters
 
+anno <- spacy_parse(df$text)
+
+top_verbs <- anno %>%
+  mutate(lead = lead(pos), 
+         term = lead(lemma)) %>%
+  filter(pos == "PROPN", lead == "VERB",
+         str_detect(entity,"PERSON"),
+         token %in% c("Langdon","Sophie","Fache","Silas")) %>%
+  count(token,term) %>%
+  group_by(token) %>%
+  arrange(desc(n)) %>%
+  top_n(10,n) %>%
+  ungroup() %>%
+  arrange(token, n) %>%
+  # 3. Add order column of row numbers
+  mutate(order = row_number())
+
+top_verbs %>%
+  ggplot(aes(order,n)) +
+  geom_col() +
+  facet_wrap(~token,scales="free") +
+  scale_x_continuous(
+    breaks = top_verbs$order,
+    labels = top_verbs$term,
+    expand = c(0,0)) +
+  coord_flip()

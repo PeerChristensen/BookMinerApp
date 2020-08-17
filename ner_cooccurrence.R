@@ -35,7 +35,7 @@ pairs %>%
   # filter(n > 5)  %>%
   graph_from_data_frame() %>% 
   ggraph(layout = "fr") +
-  geom_edge_link(aes(edge_alpha = log(n), edge_width = log(n)), edge_colour = red) +
+  geom_edge_link(aes(edge_alpha = log(n), edge_width = log(n)), edge_colour = "red") +
   geom_node_point(size = 5,colour="snow") +
   geom_node_text(aes(label = name), repel = TRUE,
                  point.padding = unit(0.2, "lines"),colour = "snow") +
@@ -46,7 +46,7 @@ pairs %>%
 
 d3 <- pairs %>%
   top_frac(.1) %>%
-  # filter(n > 5)  %>%
+  #filter(n > 1)  %>%
   graph_from_data_frame() %>% 
   igraph_to_networkD3()
 
@@ -66,5 +66,6 @@ forceNetwork(Links = d3$links, Nodes = d3$nodes,
                Source = 'source', Target = 'target', 
                NodeID = 'name', Group = 'entity_type',
                Value='value', Nodesize = 'n',fontSize=10,
-               colourScale = my_color,
-               linkColour = "snow")
+               colourScale = my_color,zoom=T,
+               linkColour = "snow",
+             linkDistance = networkD3::JS("function(d) { return 10*d.value; }"))

@@ -11,6 +11,7 @@ library(tidytext)
 library(sentimentr)
 library(udpipe)
 library(quanteda)
+#library(syuzhet)
 # Data
 library(igraph)
 library(epubr)
@@ -29,7 +30,7 @@ spacy_initialize(model="en_core_web_lg")
 # ---------------------------------------------------------------------
 
 ui <- fluidPage(theme = shinytheme("slate"),
-                add_busy_spinner(spin = "fading-circle",margin=c(40,30),color="snow"),#add_busy_bar(color = "snow"),
+                add_busy_spinner(spin = "fading-circle",margin=c(40,40),color="snow"),
                 
                 titlePanel(h1("Book Miner v. 1",align="center",
                               style='color: snow;
@@ -97,12 +98,13 @@ ui <- fluidPage(theme = shinytheme("slate"),
                          h2("Mood",align="center",
                             style='color: snow; font-weight: bold; font-family: Lato;')),
                   column(6,
-                         h2("Pace",align="center",
+                         h2("Tempo",align="center",
                             style='color: snow; font-weight: bold;font-family: Lato;'))
                 ),
                 fluidRow(
-                #  column(5, plotOutput("keywords",width = "90%"),align="center"),
-                  column(7, plotOutput("sentiment",width = "90%"),align="center")
+                  #  column(5, plotOutput("keywords",width = "90%"),align="center"),
+                  column(6, plotOutput("sentiment",width = "90%"),align="center"),
+                  column(6, plotOutput("tempo",width="90%"),align="center")
                 ),
                 hr(),
                 fluidRow(
@@ -120,8 +122,8 @@ ui <- fluidPage(theme = shinytheme("slate"),
                              tabPanel("Keywords",
                                       plotOutput("keywords",width = "100%",height = "700px"))
                              
-                             )
-                         ,style='color: snow;font-family: Lato;
+                           )
+                           ,style='color: snow;font-family: Lato;
                          font-size: 25px')
                   )
                 ),
@@ -262,13 +264,38 @@ server <- function(input, output) {
     output$sentiment <- renderPlot({
       sentiments %>%
         ggplot(aes(as.numeric(part),rollmean)) +
-        geom_col(colour="snow",alpha=.01,width=.2) +
+        geom_col(colour="grey50",alpha=.01,width=.2) +
         geom_smooth(se=F,colour=red,size=2.5,method="gam") +
         theme_void() +
         theme(plot.background  = element_rect(fill="#272B30"),
               panel.background = element_rect(fill="#272B30",
                                               color = "#272B30", size = 0),
               panel.grid = element_blank())
+    })
+    
+    # Tempo
+    sentences <- df %>%
+      unnest_tokens(text,text,"sentences") %>%
+      mutate(sentence_id = row_number())
+    
+    sentences$part <- as.numeric(cut(sentences$sentence_id, breaks = 1000,labels=1:1000))
+    sentences$length <- sentences$text %>% str_count("\\W+")
+    
+    output$tempo <- renderPlot({
+      
+    sentences %>%
+      group_by(part) %>%
+      summarise(m = median(length)) %>%
+      mutate(m=scale(m)) %>%
+      mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right")) %>%
+      #mutate(rollmean = rollmean) %>%
+      ggplot(aes(part,-rollmean)) +
+      geom_col(colour="grey50",alpha=.01,width=.2) +
+      geom_smooth(se=F,colour="forestgreen",size=2.5,method="gam") +
+      theme_void() +
+      theme(plot.background = element_rect(fill="#272B30"),
+            panel.background = element_rect(fill="#272B30"),
+            panel.grid = element_blank())
     })
     
     # readability
@@ -304,17 +331,19 @@ server <- function(input, output) {
       filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
       mutate(entity = str_replace(entity,"the_","")) %>%
       mutate(entity = str_replace_all(entity,"_"," "))
+    
     ents <- ents_full %>%
       group_by(entity_type) %>%
       count(entity) %>%
       group_by(entity) %>%
       arrange(desc(n)) %>%
-      top_n(1,n)
-    ents_plot <- ents %>%
+      top_n(1,n) %>%
       group_by(entity_type) %>%
       count(entity) %>%
       top_n(8,n) %>%
-      ungroup()     %>%
+      ungroup()
+    
+    ents_plot <- ents %>%
       arrange(entity_type, -n) %>%
       filter(n>=2) %>%
       mutate(order = rev(row_number()),
@@ -322,16 +351,25 @@ server <- function(input, output) {
                                 entity_type == "GPE"    ~ "forestgreen",
                                 entity_type == "NORP"   ~ "blue3",
                                 entity_type == "PERSON" ~ "#C41A24")) 
+    
     pairs <- ents_full %>%
-      widyr::pairwise_count(entity, doc_id, sort = TRUE) 
+      widyr::pairwise_count(entity, doc_id, sort = TRUE) %>%
+      filter(item1 %in% ents$entity,
+             item2 %in% ents$entity)
+    
     network <- pairs %>%
       #top_frac(.1) %>%
-     # filter(n>1) %>%
-     # top_n(200,n) %>%
+      filter(n>1) %>%
+      mutate(row = row_number()) %>%
+      filter(row <= 100) %>%
+      select(-row) %>%
+      # top_n(200,n) %>%
       graph_from_data_frame() %>%
       igraph_to_networkD3()
-    network$nodes <- network$nodes %>%
-      inner_join(ents, by = c("name" = "entity"))
+    
+     network$nodes <- network$nodes %>%
+       left_join(ents, by = c("name" = "entity")) 
+    
     output$ner <- renderPlot({
       ents_plot %>%
         ggplot(aes(order,n)) +
@@ -356,7 +394,8 @@ server <- function(input, output) {
     })
     output$cooc <- renderForceNetwork({
       
-      my_color <- 'd3.scaleOrdinal() .domain(["PERSON", "NORP","GPE", "FAC"]) .range(["#C41A24", "blue" , "green", "yellow"])'
+      my_color <- 'd3.scaleOrdinal() .domain(["PERSON", "NORP","GPE","FAC"]) .range(["#C41A24", "blue" , "green","yellow"])'
+      
       
       forceNetwork(Links = network$links, Nodes = network$nodes,
                    Source = 'source', Target = 'target',
@@ -365,7 +404,7 @@ server <- function(input, output) {
                    colourScale = my_color, zoom = T,opacity = 0.9,
                    fontFamily = "Lato", 
                    linkColour = "snow",
-                   linkDistance = networkD3::JS("function(d) { return 10*d.value; }"))
+                   linkDistance = networkD3::JS("function(d) { return 15*d.value; }"))
     })
   })
 }

@@ -8,7 +8,7 @@ library(zoo)
 library(tidytext)
 library(spacyr)
 
-df <- epub("kvinden_i_buret.epub")
+df <- epub("DaVinciCode.epub")
 df <- df$data[[1]]
 
 #spacy_initialize("en_core_web_lg")
@@ -28,6 +28,10 @@ sent <- syuzhet::get_sentences(df$text) %>%
   rename(text = value) %>%
   mutate(sentence_id = row_number())
 
+sent <- df %>%
+  unnest_tokens(text,text,"sentences") %>%
+  mutate(sentence_id = row_number())
+
 sent$part <- as.numeric(cut(sent$sentence_id, breaks = 1000,labels=1:1000))
 sent$length <- sent$text %>% str_count("\\W+")
 
@@ -39,7 +43,7 @@ df <- sent %>%
   mutate(rollmean = rollmean)
 
 df %>%
-  ggplot(aes(part,rollmean)) +
+  ggplot(aes(part,-rollmean)) +
   geom_col() +
   geom_smooth(se=F,colour="forestgreen") +
   theme_void() +
