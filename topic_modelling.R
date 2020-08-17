@@ -5,16 +5,22 @@ library(tidyverse)
 library(spacyr)
 library(stm)
 library(tidytext)
+library(scales)
 
-df <- epub("pride&prejudice.epub")
+df <- epub("DaVinciCode.epub")
 
 df <- df$data[[1]]
 
 anno <- spacy_parse(df$text)
 
 anno$row <- 1:nrow(anno)
-anno$doc_id <- cut_interval(anno$row,
-                           length = 300)
+#anno$doc_id <- cut_interval(anno$row,
+#                           length = 300)
+
+# 1000 word chunks (Jockers)
+anno <- anno %>%
+  mutate(is_chunk = if_else(row %% 1000 == 0,1,0)) %>%
+  mutate(doc_id = cumsum(is_chunk) + 1)
 
 anno <- anno %>%
   filter(pos == "NOUN")
@@ -31,13 +37,13 @@ df_sparse <- d %>%
   cast_sparse(doc_id, lemma, n)
 
 
-n_topics = 10 #seq(2,12,2)
+n_topics = seq(2,12,2)
 
-#models <- tibble(K = n_topics) %>%
-#  mutate(topic_model = map(K, ~stm(df_sparse, K = ., verbose = T)))
+models <- tibble(K = n_topics) %>%
+  mutate(topic_model = map(K, ~stm(df_sparse, K = ., verbose = T)))
 
-model <- stm(df_sparse, K = n_topics, verbose = T)
-plot(model)
+#model <- stm(df_sparse, K = n_topics, verbose = T)
+#plot(model)
 
 heldout <- make.heldout(df_sparse)
 
@@ -139,7 +145,7 @@ topic_model_stm_small <- k_result %>%
 
 
 topic_model_stm_big <- k_result %>% 
-  filter(K == 8)             %>% 
+  filter(K == 10)             %>% 
   pull(topic_model)         %>% 
   .[[1]]
 

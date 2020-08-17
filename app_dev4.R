@@ -154,13 +154,13 @@ server <- function(input, output) {
       return(NULL)
     }
     
+    # ----------------------------------------------------------------------
     # if epub
     if (tools::file_ext(file$datapath) == "epub") {
       
       df <- epub(file$datapath)
       df <- df$data[[1]]
       
-      # ----------------------------------------------------------------------
       # Meta data
       meta  <- df
       output$author    <- renderText(meta$creator)
@@ -170,45 +170,27 @@ server <- function(input, output) {
       output$isbn      <- renderText(meta$identifier)
       output$isbn      <- renderText(meta$identifier)
       output$date      <- renderText(as.character(as.Date(meta$date)))
-      
-      # one row
-      df_row <- tibble(text = paste(df$text,collapse = ","))
-      
     } 
+    # ----------------------------------------------------------------------
     # if pdf
     else if (tools::file_ext(file$datapath) == "pdf"){
       df <- pdf_text(file$datapath)
       df <- tibble(text=df)
       meta = NULL
-      
-      # one row
-      df_row <- tibble(text = paste(df,collapse = ","))
     }
     
-    # sentences
-    # df_sentences <- df$data[[1]] %>%
-    #      unnest_tokens(output = sentences, input = text,token = "sentences",to_lower = F) %>%
-    #      mutate(sentences = tm::removePunctuation(sentences))
+    # ----------------------------------------------------------------------
+    # one row
+    df_row <- tibble(text = paste(df,collapse = ","))
     
-    # sentences <-spacy_tokenize(
-    #     df$text,
-    #     what = c("sentence"),
-    #     remove_punct = TRUE,
-    #     remove_url = TRUE,
-    #     remove_numbers = TRUE,
-    #     remove_separators = TRUE,
-    #     remove_symbols = TRUE,output="data.frame") %>%
-    #     as_tibble() %>%
-    #     mutate(sentence_id = row_number())
-    
+    # ----------------------------------------------------------------------
     # annotated
-    #anno <- spacy_parse(sentences$token)
     anno <- spacy_parse(df$text)
     
-    
+    # ----------------------------------------------------------------------
     # Keywords
     
-    #textrank
+    # textrank
     stats <- textrank_keywords(anno$token,
                                relevant = anno$pos %in% c("NOUN", "ADJ"),
                                ngram_max = 5, sep = " ")
@@ -217,7 +199,7 @@ server <- function(input, output) {
       top_n(5,freq) %>%
       select(-ngram)
     
-    #RAKE
+    # RAKE
     stats2 <- keywords_rake(x = anno,
                             term = "lemma", group = c("doc_id"),
                             relevant = anno$pos %in% c("NOUN", "ADJ"),
@@ -228,7 +210,7 @@ server <- function(input, output) {
       select(-rake,-ngram) %>%
       top_n(3,freq)
     
-    #NPs
+    # SNPs
     np <- spacy_extract_nounphrases(df$text)
     
     top_np <- np %>%
@@ -264,7 +246,9 @@ server <- function(input, output) {
               panel.grid = element_blank())
     })
     
+    # ----------------------------------------------------------------------
     # Sentiments
+    
     sentiments      <- sentiment(get_sentences(df_row$text))
     sentiments$part <- cut(sentiments$sentence_id, breaks = 1000,labels=1:1000)
     
@@ -285,7 +269,9 @@ server <- function(input, output) {
               panel.grid = element_blank())
     })
     
+    # ----------------------------------------------------------------------
     # Tempo
+    
     sentences <- df %>%
       unnest_tokens(text,text,"sentences") %>%
       mutate(sentence_id = row_number())
@@ -295,21 +281,22 @@ server <- function(input, output) {
     
     output$tempo <- renderPlot({
       
-    sentences %>%
-      group_by(part) %>%
-      summarise(m = median(length)) %>%
-      mutate(m=scale(m)) %>%
-      mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right")) %>%
-      #mutate(rollmean = rollmean) %>%
-      ggplot(aes(part,-rollmean)) +
-      geom_col(colour="grey50",alpha=.01,width=.2) +
-      geom_smooth(se=F,colour="forestgreen",size=2.5,method="gam") +
-      theme_void() +
-      theme(plot.background = element_rect(fill="#272B30"),
-            panel.background = element_rect(fill="#272B30"),
-            panel.grid = element_blank())
+      sentences %>%
+        group_by(part) %>%
+        summarise(m = median(length)) %>%
+        mutate(m=scale(m)) %>%
+        mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right")) %>%
+        #mutate(rollmean = rollmean) %>%
+        ggplot(aes(part,-rollmean)) +
+        geom_col(colour="grey50",alpha=.01,width=.2) +
+        geom_smooth(se=F,colour="forestgreen",size=2.5,method="gam") +
+        theme_void() +
+        theme(plot.background = element_rect(fill="#272B30"),
+              panel.background = element_rect(fill="#272B30"),
+              panel.grid = element_blank())
     })
     
+    # ----------------------------------------------------------------------
     # readability
     dfCorpus <- quanteda::corpus(df_row,  text_field = "text")
     readability <- quanteda::textstat_readability(dfCorpus,
@@ -338,7 +325,9 @@ server <- function(input, output) {
                                               color = "#272B30", size = 0))
     })
     
+    # ----------------------------------------------------------------------
     # NER
+    
     ents_full <- entity_extract(anno) %>%
       filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
       mutate(entity = str_replace(entity,"the_","")) %>%
@@ -379,9 +368,14 @@ server <- function(input, output) {
       graph_from_data_frame() %>%
       igraph_to_networkD3()
     
-     network$nodes <- network$nodes %>%
-       left_join(ents, by = c("name" = "entity")) 
+    network$nodes <- network$nodes %>%
+      left_join(ents, by = c("name" = "entity")) 
     
+    # ----------------------------------------------------------------------
+    # Bar plots
+    
+    facet_labs <- c("NORP" = "Communities", "PERSON" = "Persons","FAC" = "Place names",
+                    "GPE" = "Geo-political locations")
     output$ner <- renderPlot({
       ents_plot %>%
         ggplot(aes(order,n)) +
@@ -390,7 +384,8 @@ server <- function(input, output) {
           breaks = ents_plot$order,
           labels = ents_plot$entity,
           expand = c(0,0)) +
-        facet_wrap(~entity_type,scales="free") +
+        facet_wrap(~entity_type,scales="free",
+                   labeller = labeller(entity_type = facet_labs)) +
         coord_flip() +
         theme_void() +
         theme(axis.text.y =element_text(size=16,family="Lato",colour = "snow"),
@@ -404,6 +399,10 @@ server <- function(input, output) {
               panel.background = element_rect(fill="#272B30",
                                               color = "#272B30", size = 0))
     })
+    
+    # ----------------------------------------------------------------------
+    # Cooccurrence plot
+    
     output$cooc <- renderForceNetwork({
       
       my_color <- 'd3.scaleOrdinal() .domain(["PERSON", "NORP","GPE","FAC"]) .range(["#C41A24", "blue" , "green","yellow"])'

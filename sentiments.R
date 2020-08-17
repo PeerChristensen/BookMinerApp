@@ -47,7 +47,4 @@ sentiments3 %>%
         panel.grid = element_blank())
 
 
-tempo %>%
-  ggplot(aes(sentiment,-rollmean)) +
-  geom_point() +
-  geom_smooth(method="lm")
+
