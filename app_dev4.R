@@ -4,6 +4,7 @@ options(shiny.maxRequestSize = 50*1024^2)
 library(shiny)
 library(shinythemes)
 library(shinybusy)
+library(flexdashboard)
 # Text
 library(textrank)
 library(spacyr)
@@ -20,16 +21,31 @@ library(tidyverse)
 library(networkD3)
 library(widyr)
 library(pdftools)
+library(h2o)
+library(FNN)
+
+css <- HTML("
+.html-widget.gauge svg {
+  height: 400px;
+  width: 800px;
+}")
 
 red <- "#C41A24"
 #use_python("/Users/peerchristensen/.pyenv/versions/3.7.3")
 spacy_initialize(model="en_core_web_lg")
+h2o.init()
+
+titles <- read_csv("/Users/peerchristensen/Desktop/Projects/DocSimilarity/titles.csv")
+
+#df <- epub("DaVinciCode.epub")
+#df <- df$data[[1]]
 
 # ---------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------
 
 ui <- fluidPage(theme = shinytheme("slate"),
+                tags$head(tags$style(css)),
                 add_busy_spinner(spin = "fading-circle",margin=c(40,40),color="snow"),
                 # ----------------------------------------------------------------------
                 # Title
@@ -80,6 +96,25 @@ ui <- fluidPage(theme = shinytheme("slate"),
                      style='color: snow;font-family: Lato;'),
                   h3(textOutput("date"),align = "center",
                      style='color: snow;font-family: Lato;')),
+                hr(),
+                # ----------------------------------------------------------------------
+                # Similar books and best-seller score
+                fluidRow(
+                  column(6,
+                         h2("Similar books",align="center",
+                            style='color: snow; font-weight: bold; font-family: Lato;')),
+                  column(6,
+                         h2("Best-seller score",align="center",
+                            style='color: snow; font-weight: bold;font-family: Lato;'))
+                ),
+                fluidRow(
+                  column(6,
+                         tableOutput("similarity"),align="center",
+                         style = "font-size:200%"),
+                  column(6,
+                         gaugeOutput("gauge",width="100%"),align="center")
+                  
+                ),
                 hr(),
                 # ----------------------------------------------------------------------
                 # Readability
@@ -159,7 +194,7 @@ server <- function(input, output) {
     if (tools::file_ext(file$datapath) == "epub") {
       
       df <- epub(file$datapath)
-      df <- df$data[[1]]
+      #df <- df$data[[1]]
       
       # Meta data
       meta  <- df
@@ -168,8 +203,10 @@ server <- function(input, output) {
       output$genre     <- renderText(meta$subject)
       output$publisher <- renderText(meta$publisher)
       output$isbn      <- renderText(meta$identifier)
-      output$isbn      <- renderText(meta$identifier)
       output$date      <- renderText(as.character(as.Date(meta$date)))
+      
+      df <- df$data[[1]]
+      
     } 
     # ----------------------------------------------------------------------
     # if pdf
@@ -187,10 +224,50 @@ server <- function(input, output) {
     # annotated
     anno <- spacy_parse(df$text)
     
-    # ----------------------------------------------------------------------
-    # Keywords
+    # tokens
+    tokens <- anno %>%
+      filter(pos !="PUNCT") %>%
+      select(token) %>%
+      summarise(text = paste(token,collapse = " ")) %>%
+      as.h2o() %>%
+      h2o.tokenize(split= " ")
     
-    # textrank
+    # word2vec
+    w2v_model <- h2o.loadModel(list.files("/Users/peerchristensen/Desktop/Projects/DocSimilarity/models",pattern="Word2Vec",full.names = T))
+    vecs <- h2o.importFile("/Users/peerchristensen/Desktop/Projects/DocSimilarity/vectors.csv")
+    vecs_new <- h2o.transform_word2vec(w2v_model, tokens, aggregate_method = "AVERAGE")
+    
+    ind <- knnx.index(vecs, vecs_new, k=6) %>% as.vector()
+    dist <- knnx.dist(vecs, vecs_new, k=6) %>% as.vector()
+    
+    # ----------------------------------------------------------------------
+    # Similar books
+    
+    output$similarity <- renderTable({
+      
+    titles[ind,] %>%
+        mutate(dist = dist) %>%
+        filter(dist > .001 & Title != meta$title) %>%
+        head(5) %>%
+        select(-dist)
+    },spacing ="l",hover = T,striped = T,width="80%")
+    
+    # ----------------------------------------------------------------------
+    # best-seller
+    
+    output$gauge = renderGauge({
+      gauge(95,#input$value, 
+            min = 0, 
+            max = 100, 
+            symbol = '%',
+            sectors = gaugeSectors(success = c(70, 100), 
+                                   warning = c(30, 50),
+                                   danger = c(0, 30)))
+    })
+    
+    # ----------------------------------------------------------------------
+    # keywords
+    
     stats <- textrank_keywords(anno$token,
                                relevant = anno$pos %in% c("NOUN", "ADJ"),
                                ngram_max = 5, sep = " ")
@@ -210,7 +287,7 @@ server <- function(input, output) {
       select(-rake,-ngram) %>%
       top_n(3,freq)
     
-    # SNPs
+    # NPs
     np <- spacy_extract_nounphrases(df$text)
     
     top_np <- np %>%
@@ -285,7 +362,7 @@ server <- function(input, output) {
         group_by(part) %>%
         summarise(m = median(length)) %>%
         mutate(m=scale(m)) %>%
-        mutate(rollmean = rollmean(m, k = 50, fill = 0, align = "right")) %>%
+        mutate(rollmean = zoo::rollmean(m, k = 50, fill = 0, align = "right")) %>%
         #mutate(rollmean = rollmean) %>%
         ggplot(aes(part,-rollmean)) +
         geom_col(colour="grey50",alpha=.01,width=.2) +
@@ -298,6 +375,7 @@ server <- function(input, output) {
     
     # ----------------------------------------------------------------------
     # readability
+    
     dfCorpus <- quanteda::corpus(df_row,  text_field = "text")
     readability <- quanteda::textstat_readability(dfCorpus,
                                                   measure = c("Flesch")) %>%

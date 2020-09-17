@@ -19,20 +19,24 @@ df <- df %>%
                 to_lower = F) %>%
   mutate(sentences = tm::removePunctuation(sentences))
 
-anno <- spacy_parse(df$sentences)
+anno <- spacy_parse(df$sentences) %>%
+  mutate(row = row_number()) %>%
+  mutate(is_chunk = if_else(row %% 500 == 0,1,0)) %>%
+  mutate(doc_id = cumsum(is_chunk) + 1)
 
 ents <- entity_extract(anno) %>%
   # GPE, NORP, EVENT, PERSON, ORG,     "LANGUAGE" ,    "WORK"    
   ##  [7] "PERSON"   "FAC"      "PRODUCT"  "LOC"      "LAW"
   filter(entity_type %in% c("GPE","FAC","NORP","PERSON")) %>%
-  mutate(entity = str_replace_all(entity,"_"," "))
+  mutate(entity = str_replace_all(entity,"_"," ")) 
 
 pairs <- ents %>%
   widyr::pairwise_count(entity, doc_id, sort = TRUE)
 
 pairs %>%
   top_frac(.1) %>%
-  # filter(n > 5)  %>%
+  filter(n >= 2)  %>%
+  top_n(80,n) %>%
   graph_from_data_frame() %>% 
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = log(n), edge_width = log(n)), edge_colour = "red") +

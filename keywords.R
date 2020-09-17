@@ -7,7 +7,7 @@ library(textrank)
 #library(udpipe)
 library(epubr)
 
-df <- epub("DaVinciCode.epub")
+df <- epub("circle.epub")
 df <- df$data[[1]]
 
 spacy_initialize(model="en_core_web_lg")
@@ -36,7 +36,8 @@ stats <- subset(stats$keywords, ngram > 1 & freq >= 5)
 
 top_tr <- stats %>%
   #filter(!str_detect(keyword,c("-PRON-"))) %>%
-  top_n(5,freq)
+  top_n(5,freq) %>%
+  mutate(keyword = str_replace_all(keyword," .",""))
 top_tr
 
 # RAKE
