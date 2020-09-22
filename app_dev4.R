@@ -110,7 +110,9 @@ ui <- fluidPage(theme = shinytheme("slate"),
                 fluidRow(
                   column(6,
                          tableOutput("similarity"),align="center",
-                         style = "font-size:200%"),
+                         style = "font-size:200%",
+                         tags$head(tags$style("#similarity table{
+                       background-color: #272B30;font-family: Lato}"))),
                   column(6,
                          gaugeOutput("gauge",width="100%"),align="center")
                   
@@ -250,7 +252,7 @@ server <- function(input, output) {
         filter(dist > .001 & Title != meta$title) %>%
         head(5) %>%
         select(-dist)
-    },spacing ="l",hover = T,striped = T,width="80%")
+    },spacing ="l",hover = T,striped = F,width="80%")
     
     # ----------------------------------------------------------------------
     # best-seller
