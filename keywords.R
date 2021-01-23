@@ -7,7 +7,7 @@ library(textrank)
 #library(udpipe)
 library(epubr)
 
-df <- epub("circle.epub")
+df <- epub("DaVinciCode.epub")
 df <- df$data[[1]]
 
 spacy_initialize(model="en_core_web_lg")
@@ -96,3 +96,20 @@ keywords %>%
 #   filter(freq >=5) %>%
 #   top_n(5,rake) %>% 
 #   select(-rake)
+
+
+#### summarization
+library(tidytext)
+
+sentences <- df %>%
+  unnest_tokens(sentence,text,"sentences") %>%
+  mutate(sentence_id=row_number()) %>%
+  select(sentence_id,sentence)
+
+words <- sentences %>%
+  unnest_tokens(word,sentence,"words")
+
+summary <- textrank_sentences(data = sentences,
+                   terminology = words)
+
+summary

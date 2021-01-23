@@ -37,6 +37,8 @@ h2o.init()
 
 titles <- read_csv("/Users/peerchristensen/Desktop/Projects/DocSimilarity/titles.csv")
 
+w2v_model <- h2o.loadModel("/Users/peerchristensen/Desktop/Projects/DocSimilarity/models/Word2Vec_model_R_1608541868004_15")
+vecs <- h2o.importFile("/Users/peerchristensen/Desktop/Projects/DocSimilarity/vectors.csv")
 #df <- epub("DaVinciCode.epub")
 #df <- df$data[[1]]
 
@@ -47,6 +49,7 @@ titles <- read_csv("/Users/peerchristensen/Desktop/Projects/DocSimilarity/titles
 ui <- fluidPage(theme = shinytheme("slate"),
                 tags$head(tags$style(css)),
                 add_busy_spinner(spin = "fading-circle",margin=c(40,40),color="snow"),
+                
                 # ----------------------------------------------------------------------
                 # Title
                 titlePanel(h1("Book Miner v. 1",align="center",
@@ -61,7 +64,7 @@ ui <- fluidPage(theme = shinytheme("slate"),
                 # File upload
                 fluidRow(
                   column(12,
-                         fileInput("file", h2("Upload text"),accept = c(".epub",".pdf"),
+                         fileInput("file", h2("Upload file"),accept = c(".epub",".pdf"),
                                    placeholder="epub or pdf",width="25%"),align="center", 
                          style='padding:20px;
                                 color: snow;
@@ -104,7 +107,7 @@ ui <- fluidPage(theme = shinytheme("slate"),
                          h2("Similar books",align="center",
                             style='color: snow; font-weight: bold; font-family: Lato;')),
                   column(6,
-                         h2("Best-seller score",align="center",
+                         h2("Bestseller score",align="center",
                             style='color: snow; font-weight: bold;font-family: Lato;'))
                 ),
                 fluidRow(
@@ -235,8 +238,6 @@ server <- function(input, output) {
       h2o.tokenize(split= " ")
     
     # word2vec
-    w2v_model <- h2o.loadModel(list.files("/Users/peerchristensen/Desktop/Projects/DocSimilarity/models",pattern="Word2Vec",full.names = T))
-    vecs <- h2o.importFile("/Users/peerchristensen/Desktop/Projects/DocSimilarity/vectors.csv")
     vecs_new <- h2o.transform_word2vec(w2v_model, tokens, aggregate_method = "AVERAGE")
     
     ind <- knnx.index(vecs, vecs_new, k=6) %>% as.vector()
@@ -255,7 +256,7 @@ server <- function(input, output) {
     },spacing ="l",hover = T,striped = F,width="80%")
     
     # ----------------------------------------------------------------------
-    # best-seller
+    # bestseller
     
     output$gauge = renderGauge({
       gauge(95,#input$value, 
@@ -416,12 +417,11 @@ server <- function(input, output) {
     ents <- ents_full %>%
       group_by(entity_type) %>%
       count(entity) %>%
-      group_by(entity) %>%
-      arrange(desc(n)) %>%
-      top_n(1,n) %>%
-      group_by(entity_type) %>%
-      count(entity) %>%
+      #arrange(desc(n)) %>%
       top_n(8,n) %>%
+      #group_by(entity_type) %>%
+      #count(entity) %>%
+      #top_n(8,n) %>%
       ungroup()
     
     ents_plot <- ents %>%
@@ -456,6 +456,7 @@ server <- function(input, output) {
     
     facet_labs <- c("NORP" = "Communities", "PERSON" = "Persons","FAC" = "Place names",
                     "GPE" = "Geo-political locations")
+    
     output$ner <- renderPlot({
       ents_plot %>%
         ggplot(aes(order,n)) +
